@@ -48,8 +48,8 @@ pub fn opt<T>( e0: Box<RegEx<T>> ) -> Box<RegEx<T>> {
 }
 
 // handle epsilon transition.
-fn propagate<T>( e: &Box<RegEx<T>>, s0: bool ) -> bool {
-	match **e {
+fn propagate<T>( e: &RegEx<T>, s0: bool ) -> bool {
+	match *e {
 		RegEx::Atom( _ ) => {
 			false
 		}
@@ -72,8 +72,8 @@ fn propagate<T>( e: &Box<RegEx<T>>, s0: bool ) -> bool {
 }
 
 // handle normal transition.
-fn shift<T>( e: &Box<RegEx<T>>, v: &T, s0: bool ) -> bool {
-	match **e {
+fn shift<T>( e: &RegEx<T>, v: &T, s0: bool ) -> bool {
+	match *e {
 		RegEx::Atom( ref f ) => {
 			s0 && f( v )
 		}
