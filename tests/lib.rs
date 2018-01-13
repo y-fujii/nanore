@@ -43,4 +43,16 @@ fn it_works() {
 		rep(opt(rep(val('a')))) * opt(val('b')) * rep(val('b')),
 		true, &[ ('a', true), ('a', true), ('b', true), ('b', true), ('c', false) ],
 	);
+	test_re(
+		opt(val('a') + val('b')),
+		true, &[ ('a', true), ('a', false) ],
+	);
+	test_re(
+		opt(opt(val('a')) * val('a') + val('b')),
+		true, &[ ('a', true), ('a', true), ('a', false) ],
+	);
+	test_re(
+		opt(val('x')) * val('a'),
+		false, &[ ('a', true), ('a', false) ],
+	);
 }

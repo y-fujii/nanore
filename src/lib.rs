@@ -109,7 +109,7 @@ impl<T> RegExRoot<T> {
 	}
 
 	pub fn feed( &mut self, v: &T ) {
-		self.s1 = shift( &mut self.regex, v, self.s0 ) | propagate( &mut self.regex, self.s0 );
+		self.s1 = shift( &mut self.regex, v, self.s0 ) | propagate( &mut self.regex, false );
 		self.s0 = false;
 	}
 
