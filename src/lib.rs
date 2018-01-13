@@ -1,13 +1,12 @@
 // (c) Yasuhiro Fujii <http://mimosa-pudica.net>, under MIT License.
-use std::ops;
-use std::cell::Cell;
+use std::{ mem, ops };
 
 
 pub enum RegEx<T> {
 	Atom( Box<Fn( &T ) -> bool> ),
 	Alt( Box<RegEx<T>>, Box<RegEx<T>> ),
-	Seq( Box<RegEx<T>>, Box<RegEx<T>>, Cell<bool> ),
-	Repeat( Box<RegEx<T>>, Cell<bool> ),
+	Seq( Box<RegEx<T>>, Box<RegEx<T>>, bool ),
+	Repeat( Box<RegEx<T>>, bool ),
 	Option( Box<RegEx<T>> ),
 }
 
@@ -23,7 +22,7 @@ impl<T> ops::Mul for Box<RegEx<T>> {
 	type Output = Box<RegEx<T>>;
 
 	fn mul( self, other: Self ) -> Self::Output {
-		Box::new( RegEx::Seq( self, other, Cell::new( false ) ) )
+		Box::new( RegEx::Seq( self, other, false ) )
 	}
 }
 
@@ -40,7 +39,7 @@ pub fn any<T>() -> Box<RegEx<T>> {
 }
 
 pub fn rep<T>( e0: Box<RegEx<T>> ) -> Box<RegEx<T>> {
-	Box::new( RegEx::Repeat( e0, Cell::new( false ) ) )
+	Box::new( RegEx::Repeat( e0, false ) )
 }
 
 pub fn opt<T>( e0: Box<RegEx<T>> ) -> Box<RegEx<T>> {
@@ -48,46 +47,46 @@ pub fn opt<T>( e0: Box<RegEx<T>> ) -> Box<RegEx<T>> {
 }
 
 // handle epsilon transition.
-fn propagate<T>( e: &RegEx<T>, s0: bool ) -> bool {
+fn propagate<T>( e: &mut RegEx<T>, s0: bool ) -> bool {
 	match *e {
 		RegEx::Atom( _ ) => {
 			false
 		}
-		RegEx::Alt( ref e0, ref e1 ) => {
+		RegEx::Alt( ref mut e0, ref mut e1 ) => {
 			propagate( e0, s0 ) | propagate( e1, s0 )
 		}
-		RegEx::Seq( ref e0, ref e1, ref s ) => {
-			s.set( s.get() | propagate( e0, s0 ) );
-			propagate( e1, s.get() )
+		RegEx::Seq( ref mut e0, ref mut e1, ref mut s ) => {
+			*s |= propagate( e0, s0 );
+			propagate( e1, *s )
 		}
-		RegEx::Repeat( ref e0, ref s ) => {
-			s.set( s.get() | s0 );
-			s.set( s.get() | propagate( e0, s.get() ) );
-			s.get()
+		RegEx::Repeat( ref mut e0, ref mut s ) => {
+			*s |= s0;
+			*s |= propagate( e0, *s );
+			*s
 		}
-		RegEx::Option( ref e0 ) => {
+		RegEx::Option( ref mut e0 ) => {
 			s0 | propagate( e0, s0 )
 		}
 	}
 }
 
 // handle normal transition.
-fn shift<T>( e: &RegEx<T>, v: &T, s0: bool ) -> bool {
+fn shift<T>( e: &mut RegEx<T>, v: &T, s0: bool ) -> bool {
 	match *e {
 		RegEx::Atom( ref f ) => {
 			s0 && f( v )
 		}
-		RegEx::Alt( ref e0, ref e1 ) => {
+		RegEx::Alt( ref mut e0, ref mut e1 ) => {
 			shift( e0, v, s0 ) | shift( e1, v, s0 )
 		}
-		RegEx::Seq( ref e0, ref e1, ref s ) => {
-			shift( e1, v, s.replace( shift( e0, v, s0 ) ) )
+		RegEx::Seq( ref mut e0, ref mut e1, ref mut s ) => {
+			shift( e1, v, mem::replace( s, shift( e0, v, s0 ) ) )
 		}
-		RegEx::Repeat( ref e0, ref s ) => {
-			s.set( shift( e0, v, s.get() ) );
+		RegEx::Repeat( ref mut e0, ref mut s ) => {
+			*s = shift( e0, v, *s );
 			false
 		}
-		RegEx::Option( ref e0 ) => {
+		RegEx::Option( ref mut e0 ) => {
 			shift( e0, v, s0 )
 		}
 	}
@@ -100,8 +99,8 @@ pub struct RegExRoot<T> {
 }
 
 impl<T> RegExRoot<T> {
-	pub fn new( e: Box<RegEx<T>> ) -> RegExRoot<T> {
-		let s1 = propagate( &e, true );
+	pub fn new( mut e: Box<RegEx<T>> ) -> RegExRoot<T> {
+		let s1 = propagate( &mut e, true );
 		RegExRoot{
 			regex: e,
 			s0: true,
@@ -110,7 +109,7 @@ impl<T> RegExRoot<T> {
 	}
 
 	pub fn feed( &mut self, v: &T ) {
-		self.s1 = shift( &self.regex, v, self.s0 ) | propagate( &self.regex, self.s0 );
+		self.s1 = shift( &mut self.regex, v, self.s0 ) | propagate( &mut self.regex, self.s0 );
 		self.s0 = false;
 	}
 
