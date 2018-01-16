@@ -11,7 +11,7 @@ fn test_re<T>( ast: Box<nanore::RegEx<T>>, fst: bool, seq: &[(T, bool)] ) {
 	}
 }
 
-fn test_path<T>( ast: Box<nanore::RegEx<T>>, seq: &[T], path: &[(usize, usize)] ) {
+fn test_path<T, U: Copy + PartialEq>( ast: Box<nanore::RegEx<T, U>>, seq: &[T], path: &[(usize, U)] ) {
 	let mut re = nanore::RegExRoot::new( ast );
 	for v in seq.iter() {
 		re.feed( v );

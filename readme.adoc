@@ -10,7 +10,7 @@ data types written in Rust.
 ----
 use nanore::*;
 
-let mut re = RegExRoot::new(
+let mut re = RegExRoot::<_, ()>::new(
     atom(|e| *e % 2 != 0) * atom(|e| *e % 2 == 0) + rep(atom(|e| *e > 0))
 );
 
