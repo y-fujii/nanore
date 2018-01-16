@@ -10,8 +10,8 @@ pub struct State<T: Copy>( isize, Option<rc::Rc<Path<T>>> );
 pub enum RegEx<T, U: Copy = ()> {
 	Atom( Box<Fn( &T ) -> bool> ),
 	Alt( Box<RegEx<T, U>>, Box<RegEx<T, U>> ),
-	Seq( Box<RegEx<T, U>>, Box<RegEx<T, U>>, State<U> ),
-	Repeat( Box<RegEx<T, U>>, State<U> ),
+	Seq( Box<RegEx<T, U>>, Box<RegEx<T, U>>, usize ),
+	Repeat( Box<RegEx<T, U>>, usize ),
 	Option( Box<RegEx<T, U>> ),
 	Weight( isize ),
 	Mark( U ),
@@ -29,7 +29,7 @@ impl<T, U: Copy> ops::Mul for Box<RegEx<T, U>> {
 	type Output = Box<RegEx<T, U>>;
 
 	fn mul( self, other: Self ) -> Self::Output {
-		Box::new( RegEx::Seq( self, other, State( isize::MAX, None ) ) )
+		Box::new( RegEx::Seq( self, other, usize::MAX ) )
 	}
 }
 
@@ -46,7 +46,7 @@ pub fn any<T, U: Copy>() -> Box<RegEx<T, U>> {
 }
 
 pub fn rep<T, U: Copy>( e0: Box<RegEx<T, U>> ) -> Box<RegEx<T, U>> {
-	Box::new( RegEx::Repeat( e0, State( isize::MAX, None ) ) )
+	Box::new( RegEx::Repeat( e0, usize::MAX ) )
 }
 
 pub fn opt<T, U: Copy>( e0: Box<RegEx<T, U>> ) -> Box<RegEx<T, U>> {
@@ -61,91 +61,77 @@ pub fn mark<T, U: Copy>( m: U ) -> Box<RegEx<T, U>> {
 	Box::new( RegEx::Mark( m ) )
 }
 
-fn choice<T: Copy>( s0: &State<T>, s1: &State<T> ) -> State<T> {
-	(if s0.0 < s1.0 { s0 } else { s1 }).clone()
-}
-
-// handle epsilon transition.
-fn propagate<T, U: Copy>( e: &mut RegEx<T, U>, s0: &State<U>, index: usize ) -> State<U> {
-	match *e {
-		RegEx::Atom( _ ) => {
-			State( isize::MAX, None )
-		}
-		RegEx::Alt( ref mut e0, ref mut e1 ) => {
-			choice( &propagate( e0, s0, index ), &propagate( e1, s0, index ) )
-		}
-		RegEx::Seq( ref mut e0, ref mut e1, ref mut s ) => {
-			*s = choice( s, &propagate( e0, s0, index ) );
-			propagate( e1, s, index )
-		}
-		RegEx::Repeat( ref mut e0, ref mut s ) => {
-			*s = choice( s, s0 );
-			*s = choice( s, &propagate( e0, s, index ) );
-			s.clone()
-		}
-		RegEx::Option( ref mut e0 ) => {
-			choice( s0, &propagate( e0, s0, index ) )
-		}
-		RegEx::Weight( w ) => {
-			State( s0.0 + w, s0.1.clone() )
-		}
-		RegEx::Mark( m ) => {
-			State( s0.0, Some( rc::Rc::new( Path( index, m, s0.1.clone() ) ) ) )
-		}
-	}
-}
-
-// handle normal transition.
-fn shift<T, U: Copy>( e: &mut RegEx<T, U>, v: &T, s0: &State<U> ) -> State<U> {
-	match *e {
-		RegEx::Atom( ref f ) => {
-			if s0.0 != isize::MAX && f( v ) { s0.clone() } else { State( isize::MAX, None ) }
-		}
-		RegEx::Alt( ref mut e0, ref mut e1 ) => {
-			choice( &shift( e0, v, s0 ), &shift( e1, v, s0 ) )
-		}
-		RegEx::Seq( ref mut e0, ref mut e1, ref mut s ) => {
-			shift( e1, v, &mem::replace( s, shift( e0, v, s0 ) ) )
-		}
-		RegEx::Repeat( ref mut e0, ref mut s ) => {
-			*s = shift( e0, v, s );
-			State( isize::MAX, None )
-		}
-		RegEx::Option( ref mut e0 ) => {
-			shift( e0, v, s0 )
-		}
-		RegEx::Weight( _ ) => {
-			State( isize::MAX, None )
-		}
-		RegEx::Mark( _ ) => {
-			State( isize::MAX, None )
-		}
-	}
-}
-
 pub struct RegExRoot<T, U: Copy = ()> {
 	regex: Box<RegEx<T, U>>,
-	s0: State<U>,
-	s1: State<U>,
-	index: usize,
+	nstate: usize,
 }
 
 impl<T, U: Copy> RegExRoot<T, U> {
 	pub fn new( mut e: Box<RegEx<T, U>> ) -> RegExRoot<T, U> {
-		let s1 = propagate( &mut e, &State( 0, None ), 0 );
+		let n = Self::number( &mut e, 0 );
 		RegExRoot{
 			regex: e,
-			s0: State( 0, None ),
-			s1: s1,
+			nstate: n,
+		}
+	}
+
+	fn number( e: &mut RegEx<T, U>, i: usize ) -> usize {
+		match *e {
+			RegEx::Atom( _ ) => {
+				i
+			}
+			RegEx::Alt( ref mut e0, ref mut e1 ) => {
+				Self::number( e1, Self::number( e0, i ) )
+			}
+			RegEx::Seq( ref mut e0, ref mut e1, ref mut s ) => {
+				*s = Self::number( e0, i );
+				Self::number( e1, *s + 1 )
+			}
+			RegEx::Repeat( ref mut e0, ref mut s ) => {
+				*s = i;
+				Self::number( e0, i + 1 )
+			}
+			RegEx::Option( ref mut e0 ) => {
+				Self::number( e0, i )
+			}
+			RegEx::Weight( _ ) => {
+				i
+			}
+			RegEx::Mark( _ ) => {
+				i
+			}
+		}
+	}
+}
+
+pub struct Matcher<'a, T: 'a, U: 'a + Copy = ()> {
+	root: &'a RegExRoot<T, U>,
+	index: usize,
+	s0: State<U>,
+	states: Vec<State<U>>,
+	s1: State<U>,
+}
+
+impl<'a, T, U: Copy> Matcher<'a, T, U> {
+	pub fn new( root: &'a RegExRoot<T, U> ) -> Matcher<'a, T, U> {
+		let s0 = State( 0, None );
+		let mut states = vec![ State( isize::MAX, None ); root.nstate ];
+		let s1 = propagate( &mut states, &root.regex, s0.clone(), 0 );
+		Matcher{
+			root: root,
 			index: 0,
+			s0: s0,
+			states: states,
+			s1: s1,
 		}
 	}
 
 	pub fn feed( &mut self, v: &T ) {
 		self.index += 1;
-		self.s1 = shift( &mut self.regex, v, &self.s0 );
-		self.s0 = State( isize::MAX, None );
-		self.s1 = choice( &self.s1, &propagate( &mut self.regex, &self.s0, self.index ) );
+		let s0 = mem::replace( &mut self.s0, State( isize::MAX, None ) );
+		let s1 = shift( &mut self.states, &self.root.regex, v, s0 );
+		let s2 = propagate( &mut self.states, &self.root.regex, self.s0.clone(), self.index );
+		self.s1 = choice( s1, s2 );
 	}
 
 	pub fn is_match( &self ) -> bool {
@@ -161,5 +147,87 @@ impl<T, U: Copy> RegExRoot<T, U> {
 		}
 		result.reverse();
 		result
+	}
+}
+
+fn choice<T: Copy>( s0: State<T>, s1: State<T> ) -> State<T> {
+	if s0.0 < s1.0 { s0 } else { s1 }
+}
+
+fn choice_inplace<T: Copy>( s0: &mut State<T>, s1: State<T> ) {
+	if s0.0 > s1.0 {
+		*s0 = s1;
+	}
+}
+
+// handle epsilon transition.
+fn propagate<T, U: Copy>( states: &mut [State<U>], e: &RegEx<T, U>, mut s0: State<U>, index: usize ) -> State<U> {
+	match *e {
+		RegEx::Atom( _ ) => {
+			State( isize::MAX, None )
+		}
+		RegEx::Alt( ref e0, ref e1 ) => {
+			let s1 = propagate( states, e0, s0.clone(), index );
+			let s2 = propagate( states, e1, s0, index );
+			choice( s1, s2 )
+		}
+		RegEx::Seq( ref e0, ref e1, s ) => {
+			let s1 = propagate( states, e0, s0, index );
+			choice_inplace( &mut states[s], s1 );
+			let s2 = states[s].clone();
+			propagate( states, e1, s2, index )
+		}
+		RegEx::Repeat( ref e0, s ) => {
+			choice_inplace( &mut states[s], s0 );
+			let s1 = states[s].clone();
+			let s2 = propagate( states, e0, s1, index );
+			choice_inplace( &mut states[s], s2 );
+			states[s].clone()
+		}
+		RegEx::Option( ref e0 ) => {
+			let s1 = propagate( states, e0, s0.clone(), index );
+			choice( s0, s1 )
+		}
+		RegEx::Weight( w ) => {
+			s0.0 += w;
+			s0
+		}
+		RegEx::Mark( m ) => {
+			State( s0.0, Some( rc::Rc::new( Path( index, m, s0.1.clone() ) ) ) )
+		}
+	}
+}
+
+// handle normal transition.
+fn shift<T, U: Copy>( states: &mut [State<U>], e: &RegEx<T, U>, v: &T, s0: State<U> ) -> State<U> {
+	match *e {
+		RegEx::Atom( ref f ) => {
+			if s0.0 != isize::MAX && f( v ) { s0 } else { State( isize::MAX, None ) }
+		}
+		RegEx::Alt( ref e0, ref e1 ) => {
+			let s1 = shift( states, e0, v, s0.clone() );
+			let s2 = shift( states, e1, v, s0 );
+			choice( s1, s2 )
+		}
+		RegEx::Seq( ref e0, ref e1, s ) => {
+			let s1 = shift( states, e0, v, s0 );
+			let s2 = mem::replace( &mut states[s], s1 );
+			shift( states, e1, v, s2 )
+		}
+		RegEx::Repeat( ref e0, s ) => {
+			let s1 = mem::replace( &mut states[s], unsafe { mem::uninitialized() } );
+			let s2 = shift( states, e0, v, s1 );
+			mem::forget( mem::replace( &mut states[s], s2 ) );
+			State( isize::MAX, None )
+		}
+		RegEx::Option( ref e0 ) => {
+			shift( states, e0, v, s0 )
+		}
+		RegEx::Weight( _ ) => {
+			State( isize::MAX, None )
+		}
+		RegEx::Mark( _ ) => {
+			State( isize::MAX, None )
+		}
 	}
 }
