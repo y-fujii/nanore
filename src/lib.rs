@@ -104,7 +104,7 @@ impl<T, U: Copy> RegExRoot<T, U> {
 	}
 }
 
-pub struct Matcher<'a, T: 'a, U: 'a + Copy = ()> {
+pub struct Matcher<'a, T, U: Copy = ()> where RegExRoot<T, U>: 'a {
 	root: &'a RegExRoot<T, U>,
 	index: usize,
 	s0: State<U>,
