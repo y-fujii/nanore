@@ -11,6 +11,14 @@ fn test_re<T>( ast: Box<nanore::RegEx<T>>, fst: bool, seq: &[(T, bool)] ) {
 	}
 }
 
+fn test_path<T>( ast: Box<nanore::RegEx<T>>, seq: &[T], path: &[(usize, usize)] ) {
+	let mut re = nanore::RegExRoot::new( ast );
+	for v in seq.iter() {
+		re.feed( v );
+	}
+	assert!( re.path() == path );
+}
+
 #[test]
 fn it_works() {
 	use nanore::*;
@@ -54,5 +62,25 @@ fn it_works() {
 	test_re(
 		opt(val('x')) * val('a'),
 		false, &[ ('a', true), ('a', false) ],
+	);
+	test_path(
+		mark(0) * val('a') * mark(1) * val('b') * mark(2),
+		&[ 'a', 'b' ],
+		&[ (0, 0), (1, 1), (2, 2) ],
+	);
+	test_path(
+		(mark(0) * val('a') + mark(1) * val('b')) * val('c') * mark(2),
+		&[ 'b', 'c' ],
+		&[ (0, 1), (2, 2) ],
+	);
+	test_path(
+		(mark(0) * val('a') + mark(1) * opt(weight(-1) * val('a'))) * val('c') * mark(2),
+		&[ 'a', 'c' ],
+		&[ (0, 1), (2, 2) ],
+	);
+	test_path(
+		rep(weight(1) * mark(0) * val('a')) * rep(weight(-1) * mark(1) * val('a')),
+		&[ 'a', 'a', 'a' ],
+		&[ (0, 1), (1, 1), (2, 1) ],
 	);
 }
