@@ -13,7 +13,7 @@ use nanore::*;
 let re = RegExRoot::<_, ()>::new(
     atom(|e| *e % 2 != 0) * atom(|e| *e % 2 == 0) + rep(atom(|e| *e > 0))
 );
-let mut m = Matcher::new( &re );
+let mut m = Matcher::new(&re);
 
 assert!(m.is_match());
 m.feed(&1);
@@ -32,12 +32,12 @@ assert!(!m.is_match());
 let re = RegExRoot::new(
     rep(mark(0) * val('a') + mark(1) * val('b'))
 );
-let mut m = Matcher::new( &re );
+let mut m = Matcher::new(&re);
 
-m.feed( &'a' );
-m.feed( &'b' );
-m.feed( &'a' );
-m.feed( &'b' );
+m.feed(&'a');
+m.feed(&'b');
+m.feed(&'a');
+m.feed(&'b');
 assert!(m.path() == [(0, 0), (1, 1), (2, 0), (3, 1)]);
 ----
 
@@ -47,11 +47,11 @@ assert!(m.path() == [(0, 0), (1, 1), (2, 0), (3, 1)]);
 let re = RegExRoot::new(
     rep(mark(0) * val('a')) * rep(weight(-1) * mark(1) * val('a'))
 );
-let mut m = Matcher::new( &re );
+let mut m = Matcher::new(&re);
 
-m.feed( &'a' );
-m.feed( &'a' );
-m.feed( &'a' );
-m.feed( &'a' );
+m.feed(&'a');
+m.feed(&'a');
+m.feed(&'a');
+m.feed(&'a');
 assert!(m.path() == [(0, 1), (1, 1), (2, 1), (3, 1)]);
 ----

@@ -63,29 +63,29 @@ pub struct RegExRoot<T, U: Copy = ()> {
 
 impl<T, U: Copy> RegExRoot<T, U> {
 	pub fn new( mut e: Box<RegEx<T, U>> ) -> RegExRoot<T, U> {
-		let n = Self::number( &mut e, 0 );
+		let n = Self::renumber( &mut e, 0 );
 		RegExRoot{
 			regex: e,
 			nstate: n,
 		}
 	}
 
-	fn number( e: &mut RegEx<T, U>, i: usize ) -> usize {
+	fn renumber( e: &mut RegEx<T, U>, i: usize ) -> usize {
 		match *e {
 			RegEx::Atom( _ ) => i,
 			RegEx::Alt( ref mut e0, ref mut e1 ) => {
-				Self::number( e1, Self::number( e0, i ) )
+				Self::renumber( e1, Self::renumber( e0, i ) )
 			}
 			RegEx::Seq( ref mut e0, ref mut e1, ref mut s ) => {
-				*s = Self::number( e0, i );
-				Self::number( e1, *s + 1 )
+				*s = Self::renumber( e0, i );
+				Self::renumber( e1, *s + 1 )
 			}
 			RegEx::Repeat( ref mut e0, ref mut s ) => {
 				*s = i;
-				Self::number( e0, i + 1 )
+				Self::renumber( e0, i + 1 )
 			}
 			RegEx::Option( ref mut e0 ) => {
-				Self::number( e0, i )
+				Self::renumber( e0, i )
 			}
 			RegEx::Weight( _ ) => i,
 			RegEx::Mark( _ )   => i,
@@ -98,7 +98,7 @@ struct Path<T: Copy>( usize, T, Option<rc::Rc<Path<T>>> );
 #[derive( Clone )]
 struct State<T: Copy>( isize, Option<rc::Rc<Path<T>>> );
 
-pub struct Matcher<'a, T, U: Copy = ()> where RegExRoot<T, U>: 'a {
+pub struct Matcher<'a, T: 'a, U: 'a + Copy = ()> {
 	root: &'a RegExRoot<T, U>,
 	index: usize,
 	s0: State<U>,
@@ -128,8 +128,20 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 		self.s1 = choice( s1, s2 );
 	}
 
+	pub fn feed_iter<Iter: IntoIterator<Item = &'a T>>( &mut self, iter: Iter ) {
+		for v in iter {
+			self.feed( v );
+		}
+	}
+
 	pub fn is_match( &self ) -> bool {
 		self.s1.0 != isize::MAX
+	}
+
+	pub fn alive( &self ) -> bool {
+		self.s0.0 != isize::MAX ||
+		self.s1.0 != isize::MAX ||
+		self.states.iter().any( |s| s.0 != isize::MAX )
 	}
 
 	pub fn path( &self ) -> Vec<(usize, U)> {

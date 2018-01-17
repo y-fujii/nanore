@@ -16,9 +16,7 @@ fn test_re<T>( ast: Box<RegEx<T>>, fst: bool, seq: &[(T, bool)] ) {
 fn test_path<T, U: Copy + PartialEq + std::fmt::Debug>( ast: Box<RegEx<T, U>>, seq: &[T], path: &[(usize, U)] ) {
 	let re = RegExRoot::new( ast );
 	let mut m = Matcher::new( &re );
-	for v in seq.iter() {
-		m.feed( v );
-	}
+	m.feed_iter( seq.iter() );
 	assert_eq!( m.path(), path );
 }
 
