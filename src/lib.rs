@@ -2,67 +2,67 @@
 use std::*;
 
 
-pub enum RegEx<T, U: Copy = ()> {
-	Atom( Box<Fn( &T ) -> bool> ),
-	Alt( Box<RegEx<T, U>>, Box<RegEx<T, U>> ),
-	Seq( Box<RegEx<T, U>>, Box<RegEx<T, U>>, usize ),
-	Repeat( Box<RegEx<T, U>>, usize ),
-	Option( Box<RegEx<T, U>> ),
+pub enum RegEx<'a, T, U: Copy = ()> {
+	Atom( Box<'a + Fn( &T ) -> bool> ),
+	Alt( Box<RegEx<'a, T, U>>, Box<RegEx<'a, T, U>> ),
+	Seq( Box<RegEx<'a, T, U>>, Box<RegEx<'a, T, U>>, usize ),
+	Repeat( Box<RegEx<'a, T, U>>, usize ),
+	Option( Box<RegEx<'a, T, U>> ),
 	Weight( isize ),
 	Mark( U ),
 }
 
-impl<T, U: Copy> ops::Add for Box<RegEx<T, U>> {
-	type Output = Box<RegEx<T, U>>;
+impl<'a, T, U: Copy> ops::Add for Box<RegEx<'a, T, U>> {
+	type Output = Box<RegEx<'a, T, U>>;
 
 	fn add( self, other: Self ) -> Self::Output {
 		Box::new( RegEx::Alt( self, other ) )
 	}
 }
 
-impl<T, U: Copy> ops::Mul for Box<RegEx<T, U>> {
-	type Output = Box<RegEx<T, U>>;
+impl<'a, T, U: Copy> ops::Mul for Box<RegEx<'a, T, U>> {
+	type Output = Box<RegEx<'a, T, U>>;
 
 	fn mul( self, other: Self ) -> Self::Output {
 		Box::new( RegEx::Seq( self, other, usize::MAX ) )
 	}
 }
 
-pub fn atom<T, U: Copy, F: 'static + Fn( &T ) -> bool>( f: F ) -> Box<RegEx<T, U>> {
+pub fn atom<'a, T, U: Copy, F: 'a + Fn( &T ) -> bool>( f: F ) -> Box<RegEx<'a, T, U>> {
 	Box::new( RegEx::Atom( Box::new( f ) ) )
 }
 
-pub fn val<T: 'static + PartialEq, U: Copy>( v0: T ) -> Box<RegEx<T, U>> {
+pub fn val<'a, T: 'a + PartialEq, U: Copy>( v0: T ) -> Box<RegEx<'a, T, U>> {
 	atom( move |v| *v == v0 )
 }
 
-pub fn any<T, U: Copy>() -> Box<RegEx<T, U>> {
+pub fn any<'a, T, U: Copy>() -> Box<RegEx<'a, T, U>> {
 	atom( move |_| true )
 }
 
-pub fn rep<T, U: Copy>( e0: Box<RegEx<T, U>> ) -> Box<RegEx<T, U>> {
+pub fn rep<'a, T, U: Copy>( e0: Box<RegEx<'a, T, U>> ) -> Box<RegEx<'a, T, U>> {
 	Box::new( RegEx::Repeat( e0, usize::MAX ) )
 }
 
-pub fn opt<T, U: Copy>( e0: Box<RegEx<T, U>> ) -> Box<RegEx<T, U>> {
+pub fn opt<'a, T, U: Copy>( e0: Box<RegEx<'a, T, U>> ) -> Box<RegEx<'a, T, U>> {
 	Box::new( RegEx::Option( e0 ) )
 }
 
-pub fn weight<T, U: Copy>( w: isize ) -> Box<RegEx<T, U>> {
+pub fn weight<'a, T, U: Copy>( w: isize ) -> Box<RegEx<'a, T, U>> {
 	Box::new( RegEx::Weight( w ) )
 }
 
-pub fn mark<T, U: Copy>( m: U ) -> Box<RegEx<T, U>> {
+pub fn mark<'a, T, U: Copy>( m: U ) -> Box<RegEx<'a, T, U>> {
 	Box::new( RegEx::Mark( m ) )
 }
 
-pub struct RegExRoot<T, U: Copy = ()> {
-	regex: Box<RegEx<T, U>>,
+pub struct RegExRoot<'a, T, U: Copy = ()> {
+	regex: Box<RegEx<'a, T, U>>,
 	nstate: usize,
 }
 
-impl<T, U: Copy> RegExRoot<T, U> {
-	pub fn new( mut e: Box<RegEx<T, U>> ) -> RegExRoot<T, U> {
+impl<'a, T, U: Copy> RegExRoot<'a, T, U> {
+	pub fn new( mut e: Box<RegEx<'a, T, U>> ) -> RegExRoot<'a, T, U> {
 		let n = Self::renumber( &mut e, 0 );
 		RegExRoot{
 			regex: e,
@@ -99,7 +99,7 @@ struct Path<T: Copy>( usize, T, Option<rc::Rc<Path<T>>> );
 struct State<T: Copy>( isize, Option<rc::Rc<Path<T>>> );
 
 pub struct Matcher<'a, T: 'a, U: 'a + Copy = ()> {
-	root: &'a RegExRoot<T, U>,
+	root: &'a RegExRoot<'a, T, U>,
 	index: usize,
 	s0: State<U>,
 	states: Vec<State<U>>,
@@ -107,7 +107,7 @@ pub struct Matcher<'a, T: 'a, U: 'a + Copy = ()> {
 }
 
 impl<'a, T, U: Copy> Matcher<'a, T, U> {
-	pub fn new( root: &'a RegExRoot<T, U> ) -> Matcher<'a, T, U> {
+	pub fn new( root: &'a RegExRoot<'a, T, U> ) -> Matcher<'a, T, U> {
 		let s0 = State( 0, None );
 		let mut states = vec![ State( isize::MAX, None ); root.nstate ];
 		let s1 = propagate( &mut states, &root.regex, s0.clone(), 0 );

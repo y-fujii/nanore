@@ -163,3 +163,11 @@ fn test16() {
 		m.feed_iter( seq.iter() );
 	}
 }
+
+#[test]
+fn test17() {
+	let x = 3;
+	let ref_x = &x;
+	let part = val(0) * mark(0);
+	let _re = RegExRoot::new( part * atom( |e| *e > *ref_x ) );
+}
