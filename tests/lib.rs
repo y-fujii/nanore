@@ -153,3 +153,13 @@ fn test15() {
 		&[ (0, 1), (2, 2) ],
 	);
 }
+
+#[test]
+fn test16() {
+	let re = RegExRoot::new( val(0) * mark(0) );
+	let mut m = Matcher::new( &re );
+	{
+		let seq = [1, 2, 3];
+		m.feed_iter( seq.iter() );
+	}
+}

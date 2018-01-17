@@ -128,7 +128,7 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 		self.s1 = choice( s1, s2 );
 	}
 
-	pub fn feed_iter<Iter: IntoIterator<Item = &'a T>>( &mut self, iter: Iter ) {
+	pub fn feed_iter<'b, Iter: IntoIterator<Item = &'b T>>( &mut self, iter: Iter ) where 'a: 'b {
 		for v in iter {
 			self.feed( v );
 		}
