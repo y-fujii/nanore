@@ -137,3 +137,21 @@ fn test13() {
 		&[ (0, 1), (1, 1), (2, 1) ],
 	);
 }
+
+#[test]
+fn test14() {
+	test_path(
+		(mark(0) * val('a') + mark(1) * val('a') * val('b')) * (mark(2) * val('a') + mark(3) *  weight(-1) * val('b') * val('a')),
+		&[ 'a', 'b', 'a' ],
+		&[ (0, 0), (1, 3) ],
+	);
+}
+
+#[test]
+fn test15() {
+	test_path(
+		(mark(0) * val('a') + mark(1) * val('a') * val('b')) * (mark(2) * val('a') + mark(3) *  weight(1) * val('b') * val('a')),
+		&[ 'a', 'b', 'a' ],
+		&[ (0, 1), (2, 2) ],
+	);
+}

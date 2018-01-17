@@ -2,11 +2,6 @@
 use std::*;
 
 
-struct Path<T: Copy>( usize, T, Option<rc::Rc<Path<T>>> );
-
-#[derive( Clone )]
-pub struct State<T: Copy>( isize, Option<rc::Rc<Path<T>>> );
-
 pub enum RegEx<T, U: Copy = ()> {
 	Atom( Box<Fn( &T ) -> bool> ),
 	Alt( Box<RegEx<T, U>>, Box<RegEx<T, U>> ),
@@ -77,9 +72,7 @@ impl<T, U: Copy> RegExRoot<T, U> {
 
 	fn number( e: &mut RegEx<T, U>, i: usize ) -> usize {
 		match *e {
-			RegEx::Atom( _ ) => {
-				i
-			}
+			RegEx::Atom( _ ) => i,
 			RegEx::Alt( ref mut e0, ref mut e1 ) => {
 				Self::number( e1, Self::number( e0, i ) )
 			}
@@ -94,15 +87,16 @@ impl<T, U: Copy> RegExRoot<T, U> {
 			RegEx::Option( ref mut e0 ) => {
 				Self::number( e0, i )
 			}
-			RegEx::Weight( _ ) => {
-				i
-			}
-			RegEx::Mark( _ ) => {
-				i
-			}
+			RegEx::Weight( _ ) => i,
+			RegEx::Mark( _ )   => i,
 		}
 	}
 }
+
+struct Path<T: Copy>( usize, T, Option<rc::Rc<Path<T>>> );
+
+#[derive( Clone )]
+struct State<T: Copy>( isize, Option<rc::Rc<Path<T>>> );
 
 pub struct Matcher<'a, T, U: Copy = ()> where RegExRoot<T, U>: 'a {
 	root: &'a RegExRoot<T, U>,
@@ -189,7 +183,9 @@ fn propagate<T, U: Copy>( states: &mut [State<U>], e: &RegEx<T, U>, mut s0: Stat
 			choice( s0, s1 )
 		}
 		RegEx::Weight( w ) => {
-			s0.0 += w;
+			if s0.0 != isize::MAX {
+				s0.0 += w;
+			}
 			s0
 		}
 		RegEx::Mark( m ) => {
@@ -223,11 +219,7 @@ fn shift<T, U: Copy>( states: &mut [State<U>], e: &RegEx<T, U>, v: &T, s0: State
 		RegEx::Option( ref e0 ) => {
 			shift( states, e0, v, s0 )
 		}
-		RegEx::Weight( _ ) => {
-			State( isize::MAX, None )
-		}
-		RegEx::Mark( _ ) => {
-			State( isize::MAX, None )
-		}
+		RegEx::Weight( _ ) => State( isize::MAX, None ),
+		RegEx::Mark( _ )   => State( isize::MAX, None ),
 	}
 }

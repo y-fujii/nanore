@@ -2,7 +2,7 @@
 
 image:https://travis-ci.org/y-fujii/nanore.svg?branch=master["Build Status", link="https://travis-ci.org/y-fujii/nanore"]
 
-nanore is a tiny (SLOC < 0.2K), O(MN) regular expression matcher for arbitrary
+nanore is a tiny (≃ 0.2K SLOC), O(MN) regular expression matcher for arbitrary
 data types written in Rust.
 
 == Example
@@ -32,7 +32,7 @@ assert!(!m.is_match());
 let re = RegExRoot::new(
     rep(mark(0) * val('a') + mark(1) * val('b'))
 );
-let mut m = Matcher::new( &m );
+let mut m = Matcher::new( &re );
 
 m.feed( &'a' );
 m.feed( &'b' );
