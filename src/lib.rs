@@ -165,7 +165,7 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 	}
 
 	// handle epsilon transition.
-	fn propagate( &mut self, e: &RegEx<T, U>, mut s0: State<U> ) -> State<U> {
+	fn propagate( &mut self, e: &RegEx<T, U>, s0: State<U> ) -> State<U> {
 		match *e {
 			RegEx::Atom( _ ) => {
 				State( isize::MAX, None )
@@ -193,10 +193,11 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 				Self::choice( s0, s1 )
 			}
 			RegEx::Weight( w ) => {
-				if s0.0 != isize::MAX {
-					s0.0 += w;
+				let mut s1 = s0;
+				if s1.0 != isize::MAX {
+					s1.0 += w;
 				}
-				s0
+				s1
 			}
 			RegEx::Mark( m ) => {
 				State( s0.0, Some( rc::Rc::new( Path( self.index, m, s0.1.clone() ) ) ) )
@@ -222,8 +223,7 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 			}
 			RegEx::Repeat( ref e0, s ) => {
 				let s1 = mem::replace( &mut self.states[s], State( isize::MAX, None ) );
-				let s2 = self.shift( e0, v, s1 );
-				self.states[s] = s2;
+				self.states[s] = self.shift( e0, v, s1 );
 				State( isize::MAX, None )
 			}
 			RegEx::Option( ref e0 ) => {
