@@ -221,9 +221,9 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 				self.shift( e1, v, s2 )
 			}
 			RegEx::Repeat( ref e0, s ) => {
-				let s1 = mem::replace( &mut self.states[s], unsafe { mem::uninitialized() } );
+				let s1 = mem::replace( &mut self.states[s], State( isize::MAX, None ) );
 				let s2 = self.shift( e0, v, s1 );
-				mem::forget( mem::replace( &mut self.states[s], s2 ) );
+				self.states[s] = s2;
 				State( isize::MAX, None )
 			}
 			RegEx::Option( ref e0 ) => {
