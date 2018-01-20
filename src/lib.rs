@@ -193,14 +193,11 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 				Self::choice( s0, s1 )
 			}
 			RegEx::Weight( w ) => {
-				let mut s1 = s0;
-				if s1.0 != isize::MAX {
-					s1.0 += w;
-				}
-				s1
+				let dw = if s0.0 != isize::MAX { w } else { 0 };
+				State( s0.0 + dw, s0.1 )
 			}
 			RegEx::Mark( m ) => {
-				State( s0.0, Some( rc::Rc::new( Path( self.index, m, s0.1.clone() ) ) ) )
+				State( s0.0, Some( rc::Rc::new( Path( self.index, m, s0.1 ) ) ) )
 			}
 		}
 	}
