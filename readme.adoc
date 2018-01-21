@@ -1,6 +1,7 @@
 = nanore
 
 image:https://travis-ci.org/y-fujii/nanore.svg?branch=master["Build Status", link="https://travis-ci.org/y-fujii/nanore"]
+image:https://docs.rs/nanore/badge.svg["Documentation", link="https://docs.rs/nanore/"]
 
 nanore is a tiny (≃ 0.2K SLOC) regular expression matcher for arbitrary data
 types written in Rust.
