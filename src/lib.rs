@@ -98,6 +98,7 @@ struct Path<T: Copy>( usize, T, Option<rc::Rc<Path<T>>> );
 #[derive( Clone )]
 struct State<T: Copy>( isize, Option<rc::Rc<Path<T>>> );
 
+#[derive( Clone )]
 pub struct Matcher<'a, T: 'a, U: 'a + Copy = ()> {
 	root: &'a RegExRoot<'a, T, U>,
 	index: usize,
