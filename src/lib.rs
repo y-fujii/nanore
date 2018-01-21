@@ -138,7 +138,7 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 		self.s1.0 != isize::MAX
 	}
 
-	pub fn alive( &self ) -> bool {
+	pub fn is_alive( &self ) -> bool {
 		self.s0.0 != isize::MAX ||
 		self.s1.0 != isize::MAX ||
 		self.states.iter().any( |s| s.0 != isize::MAX )
