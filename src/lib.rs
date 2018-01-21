@@ -3,11 +3,11 @@ use std::*;
 
 
 pub enum RegEx<'a, T, U: Copy = ()> {
+	Eps,
 	Atom( Box<'a + Fn( &T ) -> bool> ),
 	Alt( Box<RegEx<'a, T, U>>, Box<RegEx<'a, T, U>> ),
 	Seq( Box<RegEx<'a, T, U>>, Box<RegEx<'a, T, U>>, usize ),
 	Repeat( Box<RegEx<'a, T, U>>, usize ),
-	Option( Box<RegEx<'a, T, U>> ),
 	Weight( isize ),
 	Mark( U ),
 }
@@ -28,28 +28,32 @@ impl<'a, T, U: Copy> ops::Mul for Box<RegEx<'a, T, U>> {
 	}
 }
 
+pub fn eps<'a, T, U: Copy>() -> Box<RegEx<'a, T, U>> {
+	Box::new( RegEx::Eps )
+}
+
 pub fn atom<'a, T, U: Copy, F: 'a + Fn( &T ) -> bool>( f: F ) -> Box<RegEx<'a, T, U>> {
 	Box::new( RegEx::Atom( Box::new( f ) ) )
-}
-
-pub fn val<'a, T: 'a + PartialEq, U: Copy>( v0: T ) -> Box<RegEx<'a, T, U>> {
-	atom( move |v| *v == v0 )
-}
-
-pub fn any<'a, T, U: Copy>() -> Box<RegEx<'a, T, U>> {
-	atom( move |_| true )
 }
 
 pub fn rep<'a, T, U: Copy>( e0: Box<RegEx<'a, T, U>> ) -> Box<RegEx<'a, T, U>> {
 	Box::new( RegEx::Repeat( e0, usize::MAX ) )
 }
 
-pub fn opt<'a, T, U: Copy>( e0: Box<RegEx<'a, T, U>> ) -> Box<RegEx<'a, T, U>> {
-	Box::new( RegEx::Option( e0 ) )
-}
-
 pub fn weight<'a, T, U: Copy>( w: isize ) -> Box<RegEx<'a, T, U>> {
 	Box::new( RegEx::Weight( w ) )
+}
+
+pub fn opt<'a, T, U: Copy>( e0: Box<RegEx<'a, T, U>> ) -> Box<RegEx<'a, T, U>> {
+	eps() + e0
+}
+
+pub fn any<'a, T, U: Copy>() -> Box<RegEx<'a, T, U>> {
+	atom( move |_| true )
+}
+
+pub fn val<'a, T: 'a + PartialEq, U: Copy>( v0: T ) -> Box<RegEx<'a, T, U>> {
+	atom( move |v| *v == v0 )
 }
 
 pub fn mark<'a, T, U: Copy>( m: U ) -> Box<RegEx<'a, T, U>> {
@@ -72,6 +76,7 @@ impl<'a, T, U: Copy> RegExRoot<'a, T, U> {
 
 	fn renumber( e: &mut RegEx<T, U>, i: usize ) -> usize {
 		match *e {
+			RegEx::Eps       => i,
 			RegEx::Atom( _ ) => i,
 			RegEx::Alt( ref mut e0, ref mut e1 ) => {
 				Self::renumber( e1, Self::renumber( e0, i ) )
@@ -83,9 +88,6 @@ impl<'a, T, U: Copy> RegExRoot<'a, T, U> {
 			RegEx::Repeat( ref mut e0, ref mut s ) => {
 				*s = i;
 				Self::renumber( e0, i + 1 )
-			}
-			RegEx::Option( ref mut e0 ) => {
-				Self::renumber( e0, i )
 			}
 			RegEx::Weight( _ ) => i,
 			RegEx::Mark( _ )   => i,
@@ -168,9 +170,8 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 	// handle epsilon transition.
 	fn propagate( &mut self, e: &RegEx<T, U>, s0: State<U> ) -> State<U> {
 		match *e {
-			RegEx::Atom( _ ) => {
-				State( isize::MAX, None )
-			}
+			RegEx::Eps       => s0,
+			RegEx::Atom( _ ) => State( isize::MAX, None ),
 			RegEx::Alt( ref e0, ref e1 ) => {
 				let s1 = self.propagate( e0, s0.clone() );
 				let s2 = self.propagate( e1, s0 );
@@ -189,10 +190,6 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 				Self::choice_inplace( &mut self.states[s], s2 );
 				self.states[s].clone()
 			}
-			RegEx::Option( ref e0 ) => {
-				let s1 = self.propagate( e0, s0.clone() );
-				Self::choice( s0, s1 )
-			}
 			RegEx::Weight( w ) => {
 				let dw = if s0.0 != isize::MAX { w } else { 0 };
 				State( s0.0 + dw, s0.1 )
@@ -206,6 +203,7 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 	// handle normal transition.
 	fn shift( &mut self, e: &RegEx<T, U>, v: &T, s0: State<U> ) -> State<U> {
 		match *e {
+			RegEx::Eps => State( isize::MAX, None ),
 			RegEx::Atom( ref f ) => {
 				if s0.0 != isize::MAX && f( v ) { s0 } else { State( isize::MAX, None ) }
 			}
@@ -223,9 +221,6 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 				let s1 = mem::replace( &mut self.states[s], State( isize::MAX, None ) );
 				self.states[s] = self.shift( e0, v, s1 );
 				State( isize::MAX, None )
-			}
-			RegEx::Option( ref e0 ) => {
-				self.shift( e0, v, s0 )
 			}
 			RegEx::Weight( _ ) => State( isize::MAX, None ),
 			RegEx::Mark( _ )   => State( isize::MAX, None ),
