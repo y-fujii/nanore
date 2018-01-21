@@ -2,11 +2,20 @@
 
 image:https://travis-ci.org/y-fujii/nanore.svg?branch=master["Build Status", link="https://travis-ci.org/y-fujii/nanore"]
 
-nanore is a tiny (≃ 0.2K SLOC), O(MN) regular expression matcher for arbitrary
-data types written in Rust.
+nanore is a tiny (≃ 0.2K SLOC) regular expression matcher for arbitrary data
+types written in Rust.
+
+* O(|regexp||sequence|) time and O(|regexp|) space.  No exponential blowup.
+* Support online matching.
+* Matching states can be copied at any time.
+* Support regex weighting.
+* Support path marking.
 
 == Example
 
+=== Basics
+
+[source, rust]
 ----
 use nanore::*;
 
@@ -29,8 +38,9 @@ assert!(!m.is_match());
 Constructs: `*` (concatenation), `+` (alternation), `rep()`, `opt()`, `atom()`,
 `any()`, `val()`, `weight()`, `mark()`.
 
-=== Mark & path
+=== Mark & Path
 
+[source, rust]
 ----
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Marker { Foo, Bar }
@@ -44,11 +54,13 @@ m.feed(&'a');
 m.feed(&'b');
 m.feed(&'a');
 m.feed(&'b');
+assert!(m.is_match());
 assert!(m.path() == [(0, Marker::Foo), (1, Marker::Bar), (2, Marker::Foo), (3, Marker::Bar)]);
 ----
 
 === Weight
 
+[source, rust]
 ----
 let re = RegExRoot::new(
     rep(mark(Marker::Foo) * val('a')) * rep(weight(-1) * mark(Marker::Bar) * val('a'))
@@ -59,5 +71,6 @@ m.feed(&'a');
 m.feed(&'a');
 m.feed(&'a');
 m.feed(&'a');
+assert!(m.is_match());
 assert!(m.path() == [(0, Marker::Bar), (1, Marker::Bar), (2, Marker::Bar), (3, Marker::Bar)]);
 ----
