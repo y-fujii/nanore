@@ -192,11 +192,11 @@ fn test19() {
 	let xs = [1, 1, 2, 3, 5, 3, 2, 3, 5, 8, 13, 21, 34];
 	let re = RegExRoot::new(
 		rep(weight(1) * any()) * mark(Marker::Bgn) *
-		rep(atom(|i, _| i >= 2 && xs[i] == xs[i - 2] + xs[i - 1])) *
+		any() * any() * rep(atom(|i, _| xs[i] == xs[i - 2] + xs[i - 1])) *
 		mark(Marker::End) * rep(weight(1) * any())
 	);
 	let mut m = Matcher::new( &re );
 	m.feed_iter( &xs );
 	assert!( m.is_match() );
-	assert_eq!( m.path(), [ (8, Marker::Bgn), (13, Marker::End) ] );
+	assert_eq!( m.path(), [ (6, Marker::Bgn), (13, Marker::End) ] );
 }

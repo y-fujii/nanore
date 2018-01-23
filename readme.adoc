@@ -84,17 +84,17 @@ assert!(m.path() == [(0, Marker::Bar), (1, Marker::Bar), (2, Marker::Bar), (3, M
 enum Marker { Bgn, End }
 
 let xs = [1, 1, 2, 3, 5, 3, 2, 3, 5, 8, 13, 21, 34];
-//              ^^^^^^^           ^^^^^^^^^^^^^^^^
+//        ^^^^^^^^^^^^^     ^^^^^^^^^^^^^^^^^^^^^^
 
 let re = RegExRoot::new(
     rep(weight(1) * any()) * mark(Marker::Bgn) *
-    rep(atom(|i, x| i >= 2 && *x == xs[i - 2] + xs[i - 1])) *
+    any() * any() * rep(atom(|i, x| *x == xs[i - 2] + xs[i - 1])) *
     mark(Marker::End) * rep(weight(1) * any())
 );
 let mut m = Matcher::new(&re);
 m.feed_iter(&xs);
 
-assert!(m.path() == [(8, Marker::Bgn), (13, Marker::End)]);
+assert!(m.path() == [(6, Marker::Bgn), (13, Marker::End)]);
 ----
 
 == Reference
