@@ -4,7 +4,7 @@ use std::*;
 
 pub enum RegEx<'a, T, U: Copy = ()> {
 	Eps,
-	Atom( Box<'a + Fn( &T ) -> bool> ),
+	Atom( Box<'a + Fn( usize, &T ) -> bool> ),
 	Alt( Box<RegEx<'a, T, U>>, Box<RegEx<'a, T, U>> ),
 	Seq( Box<RegEx<'a, T, U>>, Box<RegEx<'a, T, U>>, usize ),
 	Repeat( Box<RegEx<'a, T, U>>, usize ),
@@ -32,7 +32,7 @@ pub fn eps<'a, T, U: Copy>() -> Box<RegEx<'a, T, U>> {
 	Box::new( RegEx::Eps )
 }
 
-pub fn atom<'a, T, U: Copy, F: 'a + Fn( &T ) -> bool>( f: F ) -> Box<RegEx<'a, T, U>> {
+pub fn atom<'a, T, U: Copy, F: 'a + Fn( usize, &T ) -> bool>( f: F ) -> Box<RegEx<'a, T, U>> {
 	Box::new( RegEx::Atom( Box::new( f ) ) )
 }
 
@@ -44,20 +44,20 @@ pub fn weight<'a, T, U: Copy>( w: isize ) -> Box<RegEx<'a, T, U>> {
 	Box::new( RegEx::Weight( w ) )
 }
 
+pub fn mark<'a, T, U: Copy>( m: U ) -> Box<RegEx<'a, T, U>> {
+	Box::new( RegEx::Mark( m ) )
+}
+
 pub fn opt<'a, T, U: Copy>( e0: Box<RegEx<'a, T, U>> ) -> Box<RegEx<'a, T, U>> {
 	eps() + e0
 }
 
 pub fn any<'a, T, U: Copy>() -> Box<RegEx<'a, T, U>> {
-	atom( move |_| true )
+	atom( move |_, _| true )
 }
 
 pub fn val<'a, T: 'a + PartialEq, U: Copy>( v0: T ) -> Box<RegEx<'a, T, U>> {
-	atom( move |v| *v == v0 )
-}
-
-pub fn mark<'a, T, U: Copy>( m: U ) -> Box<RegEx<'a, T, U>> {
-	Box::new( RegEx::Mark( m ) )
+	atom( move |_, v| *v == v0 )
 }
 
 pub struct RegExRoot<'a, T, U: Copy = ()> {
@@ -123,9 +123,9 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 	}
 
 	pub fn feed( &mut self, v: &T ) {
-		self.index += 1;
 		let s0 = mem::replace( &mut self.s0, State( isize::MAX, None ) );
 		let s1 = self.shift( &self.root.regex, v, s0 );
+		self.index += 1;
 		let s2 = self.propagate( &self.root.regex, State( isize::MAX, None ) );
 		self.s1 = Self::choice( s1, s2 );
 	}
@@ -205,7 +205,12 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 		match *e {
 			RegEx::Eps => State( isize::MAX, None ),
 			RegEx::Atom( ref f ) => {
-				if s0.0 != isize::MAX && f( v ) { s0 } else { State( isize::MAX, None ) }
+				if s0.0 != isize::MAX && f( self.index, v ) {
+					s0
+				}
+				else {
+					State( isize::MAX, None )
+				}
 			}
 			RegEx::Alt( ref e0, ref e1 ) => {
 				let s1 = self.shift( e0, v, s0.clone() );

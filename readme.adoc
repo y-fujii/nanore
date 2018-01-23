@@ -21,7 +21,7 @@ types written in Rust.
 use nanore::*;
 
 let re = RegExRoot::<_, ()>::new(
-    atom(|e| *e % 2 != 0) * atom(|e| *e % 2 == 0) + rep(atom(|e| *e > 0))
+    atom(|_, e| *e % 2 != 0) * atom(|_, e| *e % 2 == 0) + rep(atom(|_, e| *e > 0))
 );
 let mut m = Matcher::new(&re);
 
@@ -36,8 +36,8 @@ m.feed(&0);
 assert!(!m.is_match());
 ----
 
-Constructs: `*` (concatenation), `+` (alternation), `rep()`, `opt()`, `atom()`,
-`any()`, `val()`, `weight()`, `mark()`.
+Constructs: `*` (concatenation), `+` (alternation), `rep()`, `opt()`, `eps()`,
+`atom()`, `any()`, `val()`, `weight()`, `mark()`.
 
 === Mark & Path
 
@@ -74,6 +74,27 @@ m.feed(&'a');
 m.feed(&'a');
 assert!(m.is_match());
 assert!(m.path() == [(0, Marker::Bar), (1, Marker::Bar), (2, Marker::Bar), (3, Marker::Bar)]);
+----
+
+=== Application: Find longest fibonacci sequence
+
+[source, rust]
+----
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Marker { Bgn, End }
+
+let xs = [1, 1, 2, 3, 5, 3, 2, 3, 5, 8, 13, 21, 34];
+//              ^^^^^^^           ^^^^^^^^^^^^^^^^
+
+let re = RegExRoot::new(
+    rep(weight(1) * any()) * mark(Marker::Bgn) *
+    rep(atom(|i, x| i >= 2 && *x == xs[i - 2] + xs[i - 1])) *
+    mark(Marker::End) * rep(weight(1) * any())
+);
+let mut m = Matcher::new(&re);
+m.feed_iter(&xs);
+
+assert!(m.path() == [(8, Marker::Bgn), (13, Marker::End)]);
 ----
 
 == Reference

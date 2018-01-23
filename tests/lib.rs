@@ -39,7 +39,7 @@ fn test01() {
 #[test]
 fn test02() {
 	test_re(
-		atom(|e| *e > 0) * rep(atom(|e| *e == 0)) * atom(|e| *e < 0),
+		atom(|_, e| *e > 0) * rep(atom(|_, e| *e == 0)) * atom(|_, e| *e < 0),
 		false, &[ ( 1, false), (-1, true) ],
 	);
 }
@@ -47,7 +47,7 @@ fn test02() {
 #[test]
 fn test03() {
 	test_re(
-		atom(|e| *e % 2 != 0) * atom(|e| *e % 2 == 0) + rep(atom(|e| *e > 0)),
+		atom(|_, e| *e % 2 != 0) * atom(|_, e| *e % 2 == 0) + rep(atom(|_, e| *e > 0)),
 		true, &[ (1, true), (2, true), (3, true), (0, false) ],
 	);
 }
@@ -169,5 +169,34 @@ fn test17() {
 	let x = 3;
 	let ref_x = &x;
 	let part = val(0) * mark(0);
-	let _re = RegExRoot::new( part * atom( |e| *e > *ref_x ) );
+	let _re = RegExRoot::new( part * atom(|_, e| *e > *ref_x) );
+}
+
+#[test]
+fn test18() {
+	let xs = [1, 1, 2, 3, 5, 8, 13, 21];
+	let re = RegExRoot::<_, ()>::new(
+		rep(atom(|i, x| i < 2 || *x == xs[i - 2] + xs[i - 1]))
+	);
+	let mut m = Matcher::new( &re );
+	m.feed_iter( &xs );
+	assert!( m.is_match() );
+	m.feed( &0 );
+	assert!( !m.is_match() );
+}
+
+#[test]
+fn test19() {
+	#[derive( Clone, Copy, PartialEq, Eq, Debug )]
+	enum Marker { Bgn, End };
+	let xs = [1, 1, 2, 3, 5, 3, 2, 3, 5, 8, 13, 21, 34];
+	let re = RegExRoot::new(
+		rep(weight(1) * any()) * mark(Marker::Bgn) *
+		rep(atom(|i, _| i >= 2 && xs[i] == xs[i - 2] + xs[i - 1])) *
+		mark(Marker::End) * rep(weight(1) * any())
+	);
+	let mut m = Matcher::new( &re );
+	m.feed_iter( &xs );
+	assert!( m.is_match() );
+	assert_eq!( m.path(), [ (8, Marker::Bgn), (13, Marker::End) ] );
 }
