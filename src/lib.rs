@@ -158,11 +158,11 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 	}
 
 	fn choice( s0: State<U>, s1: State<U> ) -> State<U> {
-		if s0.0 < s1.0 { s0 } else { s1 }
+		if s1.0 < s0.0 { s1 } else { s0 }
 	}
 
 	fn choice_inplace( s0: &mut State<U>, s1: State<U> ) {
-		if s0.0 > s1.0 {
+		if s1.0 < s0.0 {
 			*s0 = s1;
 		}
 	}
