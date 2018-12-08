@@ -101,7 +101,7 @@ assert!(m.path() == [(6, Marker::Bgn), (13, Marker::End)]);
 
 http://sebfisch.github.io/haskell-regexp/[Weighted RegExp Matching]::
 	nanore uses (the subset of) the method in this paper.  Note that the idea
-	is simple and elegant, but there are some non-trivial parts due to
+	is simple and elegant, but it has some non-trivial parts due to
 	ε-transitions in implicitly generated ε-NFA (see `empty`, `final` and
 	`shift`).  nanore handles normal transitions and ε-transitions separately,
 	which seems a bit different from this paper (see `shift()` and

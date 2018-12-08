@@ -4,7 +4,7 @@ use std::*;
 
 pub enum RegEx<'a, T, U: Copy = ()> {
 	Eps,
-	Atom( Box<'a + Fn( usize, &T ) -> bool> ),
+	Atom( Box<dyn 'a + Fn( usize, &T ) -> bool> ),
 	Alt( Box<RegEx<'a, T, U>>, Box<RegEx<'a, T, U>> ),
 	Seq( Box<RegEx<'a, T, U>>, Box<RegEx<'a, T, U>>, usize ),
 	Repeat( Box<RegEx<'a, T, U>>, usize ),
@@ -74,7 +74,7 @@ impl<'a, T, U: Copy> RegExRoot<'a, T, U> {
 		}
 	}
 
-	fn renumber( e: &mut RegEx<T, U>, i: usize ) -> usize {
+	fn renumber( e: &mut RegEx<'_, T, U>, i: usize ) -> usize {
 		match *e {
 			RegEx::Eps       => i,
 			RegEx::Atom( _ ) => i,
@@ -95,13 +95,13 @@ impl<'a, T, U: Copy> RegExRoot<'a, T, U> {
 	}
 }
 
-struct Path<T: Copy>( usize, T, Option<rc::Rc<Path<T>>> );
+struct Path<T>( usize, T, Option<rc::Rc<Path<T>>> );
 
 #[derive( Clone )]
-struct State<T: Copy>( isize, Option<rc::Rc<Path<T>>> );
+struct State<T>( isize, Option<rc::Rc<Path<T>>> );
 
 #[derive( Clone )]
-pub struct Matcher<'a, T: 'a, U: 'a + Copy = ()> {
+pub struct Matcher<'a, T, U: Copy = ()> {
 	root: &'a RegExRoot<'a, T, U>,
 	index: usize,
 	s0: State<U>,
@@ -168,7 +168,7 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 	}
 
 	// handle epsilon transition.
-	fn propagate( &mut self, e: &RegEx<T, U>, s0: State<U> ) -> State<U> {
+	fn propagate( &mut self, e: &RegEx<'_, T, U>, s0: State<U> ) -> State<U> {
 		match *e {
 			RegEx::Eps       => s0,
 			RegEx::Atom( _ ) => State( isize::MAX, None ),
@@ -201,7 +201,7 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 	}
 
 	// handle normal transition.
-	fn shift( &mut self, e: &RegEx<T, U>, v: &T, s0: State<U> ) -> State<U> {
+	fn shift( &mut self, e: &RegEx<'_, T, U>, v: &T, s0: State<U> ) -> State<U> {
 		match *e {
 			RegEx::Eps => State( isize::MAX, None ),
 			RegEx::Atom( ref f ) => {

@@ -1,9 +1,8 @@
 // (c) Yasuhiro Fujii <http://mimosa-pudica.net>, under MIT License.
-extern crate nanore;
 use nanore::*;
 
 
-fn test_re<T>( ast: Box<RegEx<T>>, fst: bool, seq: &[(T, bool)] ) {
+fn test_re<T>( ast: Box<RegEx<'_, T>>, fst: bool, seq: &[(T, bool)] ) {
 	let re = RegExRoot::new( ast );
 	let mut m = Matcher::new( &re );
 	assert_eq!( m.is_match(), fst );
@@ -13,7 +12,7 @@ fn test_re<T>( ast: Box<RegEx<T>>, fst: bool, seq: &[(T, bool)] ) {
 	}
 }
 
-fn test_path<T, U: Copy + PartialEq + std::fmt::Debug>( ast: Box<RegEx<T, U>>, seq: &[T], path: &[(usize, U)] ) {
+fn test_path<T, U: Copy + PartialEq + std::fmt::Debug>( ast: Box<RegEx<'_, T, U>>, seq: &[T], path: &[(usize, U)] ) {
 	let re = RegExRoot::new( ast );
 	let mut m = Matcher::new( &re );
 	m.feed_iter( seq.iter() );

@@ -2,6 +2,7 @@
 name = "nanore"
 version = "0.2.0"
 authors = ["Yasuhiro Fujii <y-fujii@mimosa-pudica.net>"]
+edition = "2018"
 license = "MIT"
 repository = "https://github.com/y-fujii/nanore/"
 description = "Tiny regular expression matcher for arbitrary data types."
