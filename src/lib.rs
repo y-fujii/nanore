@@ -74,7 +74,7 @@ impl<'a, T, U: Copy> RegExRoot<'a, T, U> {
 		}
 	}
 
-	fn renumber( e: &mut RegEx<'_, T, U>, i: usize ) -> usize {
+	fn renumber( e: &mut RegEx<'a, T, U>, i: usize ) -> usize {
 		match *e {
 			RegEx::Eps       => i,
 			RegEx::Atom( _ ) => i,
@@ -168,7 +168,7 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 	}
 
 	// handle epsilon transition.
-	fn propagate( &mut self, e: &RegEx<'_, T, U>, s0: State<U> ) -> State<U> {
+	fn propagate( &mut self, e: &RegEx<'a, T, U>, s0: State<U> ) -> State<U> {
 		match *e {
 			RegEx::Eps       => s0,
 			RegEx::Atom( _ ) => State( isize::MAX, None ),
@@ -201,7 +201,7 @@ impl<'a, T, U: Copy> Matcher<'a, T, U> {
 	}
 
 	// handle normal transition.
-	fn shift( &mut self, e: &RegEx<'_, T, U>, v: &T, s0: State<U> ) -> State<U> {
+	fn shift( &mut self, e: &RegEx<'a, T, U>, v: &T, s0: State<U> ) -> State<U> {
 		match *e {
 			RegEx::Eps => State( isize::MAX, None ),
 			RegEx::Atom( ref f ) => {
